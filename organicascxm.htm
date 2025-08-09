@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Arman's Care</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #004d4d;
+    padding: 20px;
+    color: #fff;
+  }
+  .container {
+    max-width: 800px;
+    margin: auto;
+    background: #111;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+  }
+  h1 {
+    text-align: center;
+    margin-bottom: 10px;
+    color: white;
+  }
+  h1 span {
+    color: Magenta;
+    font-weight: bold;
+    font-style: italic;
+  }
+  .info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0;
+    font-weight: bold;
+    color: #ff8c00; /* Deep Orange */
+    position: relative;
+  }
+  .info-left { position: absolute; left: 0; }
+  .info-center { margin: 0 auto; }
+  .info-right { position: absolute; right: 0; }
+  .timer {
+    font-size: 24px;
+    font-weight: bold;
+    color: #ff8c00;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+  }
+  .timer.red { color: red; }
+  .shake {
+    animation: shake 0.5s infinite;
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(-50%) rotate(0deg); }
+    25% { transform: translateX(-50%) rotate(3deg); }
+    75% { transform: translateX(-50%) rotate(-3deg); }
+  }
+  .instructions, .question-box, #resultBox {
+    background: #222;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-weight: bold;
+  }
+  .question-box { background: #333; }
+  .question-box p { color: yellow; }
+  .options label {
+    display: block;
+    margin: 8px 0;
+    cursor: pointer;
+    color: pink;
+  }
+  .correct { color: green; }
+  .incorrect { color: red; }
+  .explanation {
+    background: #00ffff;
+    color: black;
+    padding: 10px;
+    border-left: 4px solid #1890ff;
+    margin-top: 10px;
+    border-radius: 4px;
+  }
+  button {
+    background: #6c5ce7;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 10px;
+  }
+
+  /* Added CSS for input and name container */
+  input[type="text"] {
+    width: 100%;
+    max-width: 700px; /* বক্সের সর্বোচ্চ দৈর্ঘ্য */
+    padding: 10px 15px;
+    font-size: 16px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    display: block;
+    margin: 0 auto; /* মাঝখানে আনার জন্য */
+  }
+  .name-container {
+    text-align: center;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Name Entry -->
+<div class="container" id="nameEntry">
+  <h1><span>ARMAN'S CHEMISTRY CARE</span> - <span style="color:white"> Organic Chemistry Exam</span></h1>
+
+  <div class="name-container">
+    <input type="text" id="nameInput" placeholder="Enter your name to start..." />
+  </div>
+
+  <br />
+  <button onclick="startExam()">Start Exam</button>
+</div>
+
+<!-- Exam Section -->
+<div class="container" id="examContainer" style="display:none;">
+  <h1><span>ARMAN'S CHEMISTRY CARE</span> - <span style="color:white"> Organic Chemistry Exam </span></h1>
+
+  <div class="info-header">
+    <div class="info-left"><strong>Full Marks:</strong> 15</div>
+    <div class="info-center"><strong>Total Questions:</strong> 15</div>
+    <div class="info-right"><strong>Time:15 Minutes</strong> <span class="timer" id="timer">15:00</span></div>
+  </div>
+
+  <div class="instructions">
+    <strong>Instructions:</strong>
+    <ol>
+      <li>Choose the correct option for each question.</li>
+      <li>Each correct answer carries 1 mark.</li>
+      <li>0.25 mark will be deducted for each incorrect answer.</li>
+      <li>Timer is 15 minutes. Submit before time ends.</li>
+    </ol>
+  </div>
+
+  <div id="exam"></div>
+  <button onclick="submitExam()">Submit & View Result</button>
+  <div id="resultBox"></div>
+</div>
+
+<!-- MathJax -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+
+<!-- Audio Elements -->
+<audio id="startSound" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"></audio>
+<audio id="countdownSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+<audio id="bellSound" src="https://actions.google.com/sounds/v1/alarms/bugle_tune.ogg"></audio>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDwPxMPs04lWYa71z7ANYHfczbJgNxQwxg",
+  authDomain: "leaderboard-7f122.firebaseapp.com",
+  databaseURL: "https://leaderboard-7f122-default-rtdb.firebaseio.com",
+  projectId: "leaderboard-7f122",
+  storageBucket: "leaderboard-7f122.firebasestorage.app",
+  messagingSenderId: "143943365463",
+  appId: "1:143943365463:web:993d3bcaee88411e5c4412",
+  measurementId: "G-6BMD7LQQ1B"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let userName = ""; 
+let startTime; 
+let timerInterval;
+let timerDuration = 15 * 60;
+
+const nameEntry = document.getElementById("nameEntry");
+const examContainer = document.getElementById("examContainer");
+const timerElement = document.getElementById("timer");
+
+
+
+const questions = [
+  {
+    q: `✅ প্রশ্ন ১:<br>১,২-ডাইব্রোমোইথেনকে Zn/অ্যালকোহল দিয়ে গরম করলে উৎপাদন হবে —`,
+    options: ["ক) ইথিন", "খ) অ্যাসিটিলিন", "গ) ইথেন", "ঘ) ১-ব্রোমোইথিন"],
+    correct: 1,
+    explanation: `🧠 বিশ্লেষণ:<br>১,২-ডাইব্রোমোইথেন থেকে Zn অ্যালকোহলে হ্যালোজেনের ডাবল এলিমিনেশন ঘটে → অ্যাসিটিলিন (HC≡CH) উৎপন্ন হয়।`,
+  },
+  {
+    q: `✅ প্রশ্ন ২:<br>২-বিউটাইনকে এক মোল H₂, Lindlar catalyst দিয়ে প্রতিক্রিয়া করালে উৎপাদন হবে —`,
+    options: ["ক) সিস-২-বিউটিন", "খ) ট্রান্স-২-বিউটিন", "গ) বিউটেন", "ঘ) ১-বিউটিন"],
+    correct: 0,
+    explanation: `🧠 বিশ্লেষণ:<br>Lindlar catalyst অ্যালকাইনকে আংশিক হাইড্রোজেনেশন করে সিস-অ্যালকিন উৎপন্ন করে।`,
+  },
+  {
+    q: `✅ প্রশ্ন ৩:<br>CH₃–CH=CH–CH₃-এ Br₂, CCl₄ যোগ করলে কী হবে?`,
+    options: ["ক) ১,২-ডাইব্রোমো-৩-বিউটেন", "খ) ২,৩-ডাইব্রোমো-বিউটেন", "গ) ১,৪-ডাইব্রোমো-বিউটেন", "ঘ) ১,২,৩-ট্রাইব্রোমো-বিউটেন"],
+    correct: 1,
+    explanation: `🧠 বিশ্লেষণ:<br>ব্রোমিন ডাবল বন্ডে ইলেক্ট্রোফিলিক অ্যাডিশন করে → ২,৩-ডাইব্রোমো-বিউটেন।`,
+  },
+  {
+    q: `✅ প্রশ্ন ৪:<br>HC≡C–CH₂–CH₃-কে NaNH₂ দিয়ে প্রতিক্রিয়া করালে কী হবে?`,
+    options: ["ক) এল্কাইন আয়ন তৈরি হবে", "খ) সাইক্লিক যৌগ তৈরি হবে", "গ) কোনো প্রতিক্রিয়া হবে না", "ঘ) এলকেন তৈরি হবে"],
+    correct: 0,
+    explanation: `🧠 বিশ্লেষণ:<br>NaNH₂ শক্তিশালী বেস, টার্মিনাল অ্যালকাইনের এসিডিক হাইড্রোজেন অপসারণ করে → এল্কাইন অ্যানায়ন।`,
+  },
+  {
+    q: `✅ প্রশ্ন ৫:<br>বেনজিন → (CH₃Cl, AlCl₃) → (KMnO₄, heat) → (SOCl₂) → (NH₃, heat)<br>প্রধান উৎপাদন —`,
+    options: ["ক) অ্যানিলিন", "খ) বেঞ্জামাইড", "গ) টলুইন", "ঘ) বেঞ্জয়িক অ্যাসিড"],
+    correct: 1,
+    explanation: `🧠 বিশ্লেষণ:<br>
+    Step 1: Benzene → CH₃Cl, AlCl₃ → টলুইন<br>
+    Step 2: KMnO₄ → বেঞ্জয়িক অ্যাসিড<br>
+    Step 3: SOCl₂ → বেঞ্জয়েল ক্লোরাইড<br>
+    Step 4: NH₃ → বেঞ্জামাইড।`,
+  },
+  {
+    q: `✅ প্রশ্ন ৬:<br>HC≡CH → (NaNH₂) → (CH₃–CH₂–Br) → (O₃, Zn/H₂O)<br>প্রধান উৎপাদন হবে —`,
+    options: ["ক) প্রোপানাল", "খ) অ্যাসিটিক অ্যাসিড ও ফর্মিক অ্যাসিড", "গ) বুটান-২-ওন", "ঘ) প্রোপানোন ও ফর্মালডিহাইড"],
+    correct: 3,
+    explanation: `🧠 বিশ্লেষণ:<br>
+    Step 1: NaNH₂ → অ্যাসিটাইলাইন অ্যানায়ন তৈরি<br>
+    Step 2: CH₃–CH₂–Br দিয়ে SN2 → পেন্ট-১-ইন<br>
+    Step 3: O₃ দিয়ে ওজোনোলাইসিস → দুই টুকরা → প্রোপানোন + ফর্মালডিহাইড।`,
+  },
+  {
+    q: `✅ প্রশ্ন ৭:<br>C₆H₅–CH₂OH → (K₂Cr₂O₇/H₂SO₄) → (SOCl₂) → (NH₃)<br>প্রধান উৎপাদন —`,
+    options: ["ক) বেঞ্জয়িক অ্যাসিড", "খ) বেঞ্জামাইড", "গ) বেঞ্জয়েল ক্লোরাইড", "ঘ) বেঞ্জালডিহাইড"],
+    correct: 1,
+    explanation: `🧠 বিশ্লেষণ:<br>
+    Step 1: Oxidation → বেঞ্জয়িক অ্যাসিড<br>
+    Step 2: SOCl₂ → বেঞ্জয়েল ক্লোরাইড<br>
+    Step 3: NH₃ → বেঞ্জামাইড।`,
+  },
+  {
+    q: `✅ প্রশ্ন ৮:<br>CH₃–CH=CH–CH₂–Br → (NaNH₂) → (H₂O)<br>প্রধান উৎপাদন —`,
+    options: ["ক) প্রোপাইন", "খ) বিউটাইন", "গ) পেন্টাইন", "ঘ) অ্যালেন"],
+    correct: 1,
+    explanation: `🧠 বিশ্লেষণ:<br>Elimination → ডাবল এলিমিনেশন → বিউটাইন।`,
+  },
+  {
+    q: `✅ প্রশ্ন ৯:<br>অ্যালডিহাইড ও কেটোন মিশ্রণে 2,4-DNP পরীক্ষায় একটি হলুদ তলানি পাওয়া গেল। এরপরে সেই যৌগটি সোডিয়াম বিসালফাইটের সাথে বিক্রিয়ায় অংশ নিল না। যৌগটি কী হতে পারে?`,
+    options: ["ক) অ্যাসিটোন", "খ) বেনজালডিহাইড", "গ) প্রোপানোন", "ঘ) অ্যাসিটোফেনন"],
+    correct: 3,
+    explanation: `🧠 সমাধান:<br>
+    2,4-DNP → সব অ্যালডিহাইড ও কেটোনে বিক্রিয়া করে।<br>
+    সোডিয়াম বিসালফাইট → শুধু ছোট অ্যালডিহাইডে সহজে সংযোজিত হয়।<br>
+    অ্যাসিটোফেনন (অ্যারোমেটিক কেটোন) বিসালফাইটের সাথে স্থিতিশীল যোগফল তৈরি করে না।<br>
+    ব্যাখ্যা:<br>অ্যারোমেটিক কেটোনে কার্বনাইল গ্রুপের ইলেক্ট্রোফিলিসিটি কম, ফলে বিসালফাইটের নিউক্লিওফিলিক আক্রমণ কঠিন হয়।`,
+  },
+
+ {
+    q: `✅ প্রশ্ন ১০:<br>R-CONH₂ + Br₂ + KOH→ 'X' (প্রধান উৎপাদ) X' যৌগটি কী?`,
+    options: ["(a) অ্যালকোহল", "(b) অ্যামিন", "(c) অ্যালডিহাইড", "(d) ইথার"],
+    correct: 1,
+    explanation: `🧠 সমাধান:<br>এই বিক্রিয়াটি হফম্যান ক্ষুদ্রাংশকরণ নামে পরিচিত, যেখানে অ্যামাইড (R-CONH₂) ব্রোমিন (Br₂) এবং ক্ষার (KOH) এর সাথে প্রতিক্রিয়া করে অ্যামিন (R-NH₂) গঠন করে।<br>সুতরাং, 'X' যৌগটি হলো: অ্যামিন।`,
+  },
+  {
+    q: `✅ প্রশ্ন ১১:<br>গ্লিসারালডিহাইডে কাইরাল কার্বন কয়টি?`,
+    options: ["(a) 1 টি", "(b) 2 টি", "(c) 3 টি", "(d) 4 টি"],
+    correct: 0,
+    explanation: `🧠 সমাধান:<br>গ্লিসারালডিহাইডে একটি কাইরাল কার্বন পরমাণু থাকে। এটি হল দ্বিতীয় কার্বন, যেখানে চারটি ভিন্ন গ্রুপ যুক্ত থাকে।`,
+  },
+  {
+    q: `✅ প্রশ্ন ১২:<br>অ্যালডিহাইড-ফেহলিং দ্রবণ লাল অধঃক্ষেপ; বিক্রিয়াটি--`,
+    options: ["(a) প্রতিস্থাপন বিক্রিয়া", "(b) সংযোজন বিক্রিয়া", "(c) জারণ-বিজারণ বিক্রিয়া", "(d) অপসারণ বিক্রিয়া"],
+    correct: 2,
+    explanation: `🧠 সমাধান:<br>অ্যালডিহাইড যখন ফেহলিং দ্রবণের সাথে বিক্রিয়া করে, তখন লাল রঙের অধঃক্ষেপ (Cu₂O) তৈরি হয়। এটি একটি জারণ-বিজারণ (redox) বিক্রিয়া।`,
+  },
+  {
+    q: `✅ প্রশ্ন ১৩:<br>প্রাইমারি অ্যামিন শনাক্তকরণে ব্যবহৃত হয়-`,
+    options: ["(a) CHCl₃, KOH", "(b) Br₂+ KOH", "(c) Cu(OH)₂+ NaOH", "(d) KMnO₄, KOH"],
+    correct: 0,
+    explanation: `🧠 সমাধান:<br>প্রাইমারি অ্যামিন শনাক্তকরণের জন্য কার্বিল আমিন পরীক্ষা ব্যবহৃত হয়, যেখানে CHCl₃ এবং KOH দিয়ে প্রতিক্রিয়া হয়।`,
+  },
+  {
+    q: `✅ প্রশ্ন ১৪:<br>কোন যৌগটি টটোমারিতা প্রদর্শন করে?`,
+    options: ["(a) বিউট-২-ইন", "(b) ডাই ইথাইল ইথার", "(c) প্রোপানোন", "(d) ইথান্যাল"],
+    correct: 2,
+    explanation: `🧠 সমাধান:<br>প্রোপানোন কিটো-ইনল টটোমারিজম প্রদর্শন করে।`,
+  },
+  {
+    q: `✅ প্রশ্ন ১৫:<br>C-C বন্ধন দূরত্ব কত nm?`,
+    options: ["(a) 0.154", "(b) 0.153", "(c) 0.156", "(d) 0.110"],
+    correct: 0,
+    explanation: `🧠 সমাধান:<br>সাধারণত অ্যালকেনের C-C বন্ধন দূরত্ব 0.154 nm।`,
+  },
+];
+
+
+window.startExam = function() {
+  userName = document.getElementById("nameInput").value.trim();
+  if (!userName) return alert("Please enter your name.");
+  document.getElementById("startSound").play();
+  startTime = new Date();
+  nameEntry.style.display = "none";
+  examContainer.style.display = "block";
+  renderQuestions();
+  startTimer();
+};
+
+function startTimer() {
+  timerInterval = setInterval(() => {
+    let minutes = Math.floor(timerDuration / 60);
+    let seconds = timerDuration % 60;
+    timerElement.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+
+    if (timerDuration <= 15) timerElement.classList.add("shake");
+    if (timerDuration <= 5 && timerDuration > 0) document.getElementById("countdownSound").play();
+    if (timerDuration === 0) {
+      document.getElementById("bellSound").play();
+      clearInterval(timerInterval);
+      submitExam();
+      alert("⏰ Time is up!");
+    }
+    timerDuration--;
+  }, 1000);
+}
+
+function renderQuestions() {
+  const examDiv = document.getElementById("exam");
+  examDiv.innerHTML = "";
+  questions.forEach((question, index) => {
+    const qBox = document.createElement("div");
+    qBox.className = "question-box";
+    qBox.innerHTML = `
+      <p><strong>Q${index + 1}:</strong> ${question.q}</p>
+      <div class="options">
+        ${question.options.map((opt, i) => `<label><input type="radio" name="q${index}" value="${i}"> ${opt}</label>`).join('')}
+      </div>
+      <div id="feedback${index}"></div>
+    `;
+    examDiv.appendChild(qBox);
+  });
+  MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
+}
+
+window.submitExam = function() {
+  clearInterval(timerInterval);
+  const submitBtn = document.querySelector("button[onclick='submitExam()']");
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.innerText = "Submitted"; }
+
+  let score = 0, correctCount = 0, wrongCount = 0;
+
+  questions.forEach((q, i) => {
+    const selected = document.querySelector(`input[name='q${i}']:checked`);
+    const feedback = document.getElementById(`feedback${i}`);
+    if (!selected) {
+      feedback.innerHTML = `<p class='incorrect'>❌ উত্তর দেওয়া হয়নি।</p><div class='explanation'>সঠিক উত্তর: ${q.options[q.correct]}<br>${q.explanation}</div>`;
+      return;
+    }
+    const ans = parseInt(selected.value);
+    if (ans === q.correct) {
+      score++;
+      correctCount++;
+      feedback.innerHTML = `<p class='correct'>✅ সঠিক উত্তর!</p><div class='explanation'>${q.explanation}</div>`;
+    } else {
+      score -= 0.25;
+      wrongCount++;
+      feedback.innerHTML = `<p class='incorrect'>❌ ভুল উত্তর।</p><div class='explanation'>সঠিক উত্তর: ${q.options[q.correct]}<br>${q.explanation}</div>`;
+    }
+  });
+
+  const timeTaken = Math.floor((new Date() - startTime) / 1000);
+  document.getElementById("resultBox").innerHTML = `
+    <h3>📊 পরীক্ষার ফলাফল</h3>
+    <p><strong>👤 নাম:</strong> ${userName}</p>
+    <p><strong>✅ সঠিক উত্তর:</strong> ${correctCount}</p>
+    <p><strong>❌ ভুল উত্তর:</strong> ${wrongCount}</p>
+    <p><strong>🔢 স্কোর:</strong> ${score.toFixed(2)} out of ${questions.length}</p>
+    <p><strong>⏱ সময়:</strong> ${Math.floor(timeTaken / 60)} মিনিট ${timeTaken % 60} সেকেন্ড</p>
+  `;
+
+  const resultData = {
+    name: userName,
+    score: score.toFixed(2),
+    correct: correctCount,
+    wrong: wrongCount,
+    totalQuestions: questions.length,
+    timeTaken: `${Math.floor(timeTaken / 60)}m ${timeTaken % 60}s`,
+    timestamp: new Date().toISOString()
+  };
+
+  const examRef = ref(db, 'vector_exam_results/');
+  push(examRef, resultData)
+    .then(() => console.log("✅ Result saved successfully!"))
+    .catch((err) => console.error("❌ Error saving result:", err));
+
+  MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
+};
+</script>
+</body>
+</html>
+
+
